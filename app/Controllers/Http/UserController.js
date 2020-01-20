@@ -8,19 +8,28 @@ class UserController {
   async login({ request, response, auth }) {
     const { email, password } = request.only(["email", "password"]);
 
-    const token = await auth.attempt(email, password);
-    return response.json(token, email, password);
+    try {
+      const token = await auth.attempt(email, password);
+      return response.json({ success: true, token }, token, email, password);
+    } catch (error) {
+      return response.status(400).json({
+        success: false,
+        message: 'Email dan password tidak cocok',
+        error,
+      })
+    }
   }
 
-  async register({ request, response }) {
+  async register({ request, response, auth }) {
     const { username, email, password } = request.only([
       "username",
       "email",
       "password"
     ]);
 
-    const roleMerchant = await Database.from("roles")
-      .where("slug", "merchant")
+    // try {
+    const roleUser = await Database.from("roles")
+      .where("slug", "user")
       .first();
 
     const user = await User.create({
@@ -29,9 +38,26 @@ class UserController {
       password
     })
 
-    await user.roles().attach([roleMerchant.id])
+    await user.roles().attach([roleUser.id])
 
-    return response.send({ message: "User has been created" });
+    const token = await auth.generate(user)
+
+    // const getUser = await auth.getUser();
+
+    return response.send({
+      success: true,
+      message: "User has been created",
+      token: token,
+      // user: getUser
+    });
+    // } catch (error) {
+    //   return response.status(400).json({
+    //     status: 'error',
+    //     message: 'There was a problem creating the user, please try again later.',
+    //     error: error
+    //   })
+    // }
+
   }
 
   async show({ params, response }) {
